@@ -1,9 +1,124 @@
 ﻿@page "/"
 
-<PageTitle>Index</PageTitle>
+<!-- Conteúdo da sua main (copiado do index.html) -->
+<section class="search-section">
+    <div class="section-intro">
+        <h3><i class="fas fa-map-marker-alt"></i> Rastreamento de Entrega</h3>
+        <p>Insira o código de rastreamento para acompanhar cada etapa do seu presente</p>
+    </div>
 
-<h1>Hello, world!</h1>
+    <div class="search-card">
+        <div class="card-header">
+            <h4>Consultar Status</h4>
+            <div class="card-badge">
+                <i class="fas fa-star"></i>
+                <span>Exclusivo</span>
+            </div>
+        </div>
 
-Welcome to your new app.
+        <form class="search-form" id="trackingForm">
+            <div class="form-group-elegant">
+                <label for="trackingCode">
+                    <i class="fas fa-hashtag"></i>
+                    Código de Rastreamento
+                </label>
+                <div class="input-with-button">
+                    <input type="text"
+                           id="trackingCode"
+                           placeholder="Ex: ABCDE00001 ou DW863203770BR"
+                           value="ABCDE00001"
+                           required />
 
-<SurveyPrompt Title="How is Blazor working for you?" />
+                    <button type="submit" class="search-button mobile-tall">
+                        <i class="fas fa-search"></i>
+                        Rastrear
+                    </button>
+                </div>
+                <p class="input-hint">
+                    <i class="fas fa-info-circle"></i>
+                    digite seu CPF ou e-mail para realizar a busca.
+                </p>
+            </div>
+        </form>
+    </div>
+</section>
+
+<!-- Seção de Resultados (inicialmente escondida) -->
+<section class="results-section" id="resultsSection" style="display: none;">
+    <div class="order-info-card">
+        <div class="info-header">
+            <div>
+                <h4>Detalhes da Entrega</h4>
+                <div class="order-status">
+                    <span class="status-badge delivered" id="currentStatusBadge">
+                        <i class="fas fa-check-circle"></i>
+                        Entregue
+                    </span>
+                </div>
+            </div>
+            <div class="order-meta">
+                <div class="meta-item">
+                    <span class="meta-label">Código:</span>
+                    <span class="meta-value" id="displayTrackingCode">ABCDE00001</span>
+                </div>
+                <div class="meta-item highlight">
+                    <span class="meta-label">Previsão:</span>
+                    <span class="meta-value" id="displayDeliveryDate">19/06/2017</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="info-grid">
+            <div class="grid-item">
+                <span class="grid-label">Transportadora</span>
+                <span class="grid-value" id="displayCarrier">Correios</span>
+            </div>
+            <div class="grid-item">
+                <span class="grid-label">Código Transportadora</span>
+                <span class="grid-value" id="displayCarrierCode">DW863203770BR</span>
+            </div>
+            <div class="grid-item">
+                <span class="grid-label">Número do Pedido</span>
+                <span class="grid-value" id="displayOrderNumber">252512-00001</span>
+            </div>
+            <div class="grid-item">
+                <span class="grid-label">ID do Presente</span>
+                <span class="grid-value" id="displayPartnerId">839FEB57013D48C7...</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="timeline-modern">
+        <div class="timeline-header">
+            <h4><i class="fas fa-history"></i> Histórico da Entrega</h4>
+            <p>Cronologia completa dos eventos</p>
+        </div>
+
+        <div class="timeline-content" id="timeline">
+            <!-- Timeline será carregada dinamicamente pelo seu script.js -->
+        </div>
+    </div>
+</section>
+
+<!-- Estado Inicial -->
+<section class="empty-state" id="emptyState">
+    <div class="empty-content">
+        <div class="empty-icon">
+            <i class="fas fa-box-open"></i>
+        </div>
+        <h4>Aguardando Consulta</h4>
+        <p>Insira o código de rastreamento para visualizar o status do seu presente.</p>
+        <div class="empty-tips">
+            <div class="tip">
+                <i class="fas fa-envelope"></i>
+                <span>Verifique seu e-mail corporativo</span>
+            </div>
+            <div class="tip">
+                <i class="fas fa-file-alt"></i>
+                <span>O código foi fornecido pela Constellation</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Nota: não incluí modal/footer aqui porque o layout já os contém -->
