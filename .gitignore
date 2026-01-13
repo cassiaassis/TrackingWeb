@@ -117,7 +117,6 @@ _TeamCity*
 
 # AxoCover
 .axoCover/*
-!.axoCover/settings.json
 
 # Coverlet
 coverage*.json
@@ -350,3 +349,7 @@ FodyWeavers.xsd
 
 # JetBrains Rider
 *.sln.iml
+
+# Serilog Logs
+Logs/
+*.log

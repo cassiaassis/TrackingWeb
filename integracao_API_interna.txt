@@ -1,0 +1,236 @@
+Integração com API de Rastreamento - Tracking Backend
+
+Objetivo
+Integrar o frontend com a API de rastreamento de pedidos em .NET 8 rodando em localhost.
+
+Configuração da API
+Base URL: http://localhost:5285/api
+Autenticação:
+•	Tipo: JWT Bearer Token
+•	Método: Obter token via endpoint /auth/authenticate
+•	Header: Authorization: Bearer {token}
+•	Validade: 30 minutos
+
+
+Endpoints Disponíveis
+
+1. POST /api/auth/authenticate
+Autentica o usuário e retorna um token JWT.
+
+Request:
+{
+  "identifier": "32676652800"
+}
+
+•	identifier: CPF (somente números) ou e-mail do cliente
+
+Response (200 OK):
+{
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "expires_at": "2026-01-12T15:30:00Z"
+}
+
+2. POST /api/rastreio
+Consulta informações de rastreamento do pedido.
+
+Headers:
+Authorization: Bearer {token_obtido_no_authenticate}
+Content-Type: application/json
+
+Request:
+{
+  "identificador": "32676652800"
+}
+
+•	identificador: Mesmo CPF ou e-mail usado na autenticação
+
+Response (200 OK):
+{
+  "code": 200,
+  "message": "OK",
+  "info": {
+    "id": "8064892",
+    "number": "ENX8064892-1",
+    "date": "10/01/2026",
+    "prediction": "15/01/2026",
+    "iderp": "PED-2026-001"
+  },
+  "shippingevents": [
+    {
+      "code": "BDE",
+      "dscode": "Entregue",
+      "message": "Objeto entregue ao destinatário",
+      "detalhe": "Objeto entregue ao destinatário",
+      "complement": "Entregue para JOANNA",
+      "dtshipping": "2026-01-15T14:30:00",
+      "internalcode": 90
+    },
+    {
+      "code": "OEC",
+      "dscode": "Saiu para entrega",
+      "message": "Objeto saiu para entrega ao destinatário",
+      "detalhe": "Objeto saiu para entrega ao destinatário",
+      "complement": null,
+      "dtshipping": "2026-01-15T08:15:00",
+      "internalcode": 75
+    }
+  ]
+}
+
+
+Estrutura dos Dados
+
+ShippingEvent (Evento de Rastreio):
+interface ShippingEvent {
+  code: string;              // Código do evento na transportadora (ex: "BDE", "OEC")
+  dscode: string;            // Descrição amigável (ex: "Entregue", "Em trânsito")
+  message: string;           // Mensagem detalhada do evento
+  detalhe: string;           // Detalhes adicionais
+  complement: string | null; // Complemento (ex: local, destinatário)
+  dtshipping: string;        // Data/hora no formato ISO 8601
+  internalcode: number | null; // Código interno (90=Entregue, 75=Saiu para entrega, etc)
+}
+
+OrderInfo (Informações do Pedido):
+interface OrderInfo {
+  id: string;         // ID interno do pedido
+  number: string;     // Número do pedido (ex: "ENX8064892-1")
+  date: string;       // Data do pedido (dd/MM/yyyy)
+  prediction: string; // Previsão de entrega (dd/MM/yyyy)
+  iderp: string | null; // ID no sistema ERP
+}
+
+
+Response Completa:
+interface TrackingResponse {
+  code: number;               // Status code (200 = sucesso)
+  message: string;            // Mensagem (ex: "OK", "CPF não localizado")
+  info: OrderInfo | null;     // Informações do pedido
+  shippingevents: ShippingEvent[]; // Lista de eventos de rastreio
+} 
+ 
+
+Fluxo de Autenticação
+Passo a passo:
+1.	Obter Token:
+const response = await fetch('http://localhost:5285/api/auth/authenticate', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ identifier: '32676652800' })
+});
+const { access_token } = await response.json();
+
+2.	Consultar Rastreio:
+const tracking = await fetch('http://localhost:5285/api/rastreio', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${access_token}`
+  },
+  body: JSON.stringify({ identificador: '32676652800' })
+});
+const data = await tracking.json();
+
+Tratamento de Erros
+Code	Descrição	Ação
+200	Sucesso	Verificar message no JSON para status específico
+400	Bad Request	Identificador vazio ou inválido
+401	Unauthorized	Token inválido/expirado - renovar autenticação
+502	Bad Gateway	Serviço TPL indisponível - tentar novamente
+
+
+Exemplo de Tratamento:
+try {
+  const response = await fetch('http://localhost:5285/api/rastreio', { ... });
+  
+  if (response.status === 401) {
+    // Token expirado - renovar
+    await authenticate(cpf);
+    return consultarRastreio(cpf);
+  }
+  
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}`);
+  }
+  
+  const data = await response.json();
+  
+  // Verificar mensagem específica
+  if (data.message === "CPF ou e-mail não localizado.") {
+    // Exibir mensagem ao usuário
+  }
+  
+} catch (error) {
+  console.error('Erro:', error);
+}
+
+
+Cenários de Resposta
+1. Pedido Entregue (CPF: 32676652800):
+•	message: "OK"
+•	shippingevents.length: 4 eventos
+•	Último evento: dscode: "Entregue", internalcode: 90
+2. Em Preparação (CPF: 12676652800):
+•	message: "OK"
+•	shippingevents.length: 1 evento
+•	Evento: dscode: "Em preparação", message: "Seu pedido está sendo preparado"
+3. CPF Não Encontrado (CPF: 22676652801):
+•	message: "CPF ou e-mail não localizado."
+•	shippingevents.length: 1 evento vazio
+•	Todos os campos vazios
+
+Refresh de Token
+O token expira em 30 minutos. Implementar lógica de renovação:
+let token = null;
+let tokenExpiry = null;
+
+async function getValidToken(cpf) {
+  const now = new Date();
+  
+  // Token ainda válido
+  if (token && tokenExpiry && now < tokenExpiry) {
+    return token;
+  }
+  
+  // Renovar token
+  const response = await fetch('http://localhost:5285/api/auth/authenticate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ identifier: cpf })
+  });
+  
+  const data = await response.json();
+  token = data.access_token;
+  tokenExpiry = new Date(data.expires_at);
+  
+  return token;
+}
+
+
+
+
+Requisitos do Frontend
+CORS:
+A API já está configurada para aceitar requisições de:
+•	http://localhost:3000 (React)
+•	http://localhost:4200 (Angular)
+•	http://localhost:8080 (Vue)
+•	http://localhost:5173 (Vite)
+
+Headers Obrigatórios:
+{
+  'Content-Type': 'application/json',
+  'Authorization': 'Bearer {token}' // Apenas no /rastreio
+}
+
+
+Checklist de Implementação
+•	[ ] Criar serviço/API client com base URL http://localhost:5285/api
+•	[ ] Implementar método authenticate(cpfOrEmail)
+•	[ ] Implementar método consultarRastreio(cpfOrEmail)
+•	[ ] Armazenar token (localStorage/sessionStorage/context)
+•	[ ] Implementar renovação automática de token
+•	[ ] Tratar erro 401 (token expirado)
+•	[ ] Exibir mensagens baseadas em data.message
+•	[ ] Renderizar eventos ordenados por dtshipping (mais recente primeiro)
+

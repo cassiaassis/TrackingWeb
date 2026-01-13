@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tracking Experience - Constellation</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="icon" href="favicon.ico" type="image/x-icon">
+</head>
+<body>
+    <header class="header-constellation">
+        <div class="container header-container">
+            <div class="header-content">
+                <div class="logo-constellation">
+                    <div class="logo-mark">
+                        <img src="imagens/logoContatellation.png" alt="Constellation Logo" class="logo-image">
+                    </div>
+                </div>
+                
+                <div class="brand-statements-container">
+                    <span class="brand-statement">Somos a Constellation.</span>
+                    <span class="brand-statement">We are the Constellation.</span>
+                </div>
+            </div>
+        </div>
+    </header>
+    
+    <section class="gift-banner">
+        <div class="container">
+            <div class="banner-wrapper">
+                <div class="banner-icon">
+                    <i class="fas fa-gift"></i>
+                </div>
+                <div class="banner-content">
+                    <h2>Seu Presente Especial</h2>
+                    <p>Reconhecendo e valorizando seus colaboradores</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <main class="container main-content">
+        <section class="search-section">
+            <div class="section-intro">
+                <h3><i class="fas fa-map-marker-alt"></i> Rastreamento de Entrega</h3>
+                <p>Insira o código de rastreamento para acompanhar cada etapa do seu presente</p>
+            </div>
+            
+            <div class="search-card">
+                <div class="card-header">
+                    <h4>Consultar Status</h4>
+                    <div class="card-badge">
+                        <i class="fas fa-star"></i>
+                        <span>Exclusivo</span>
+                    </div>
+                </div>
+                
+                <form class="search-form" id="trackingForm">
+                    <div class="form-group-elegant">
+                        <label for="trackingCode">
+                            <i class="fas fa-hashtag"></i>
+                            Código de Rastreamento
+                        </label>
+                        <div class="input-with-button">
+                            <input 
+                                type="text" 
+                                id="trackingCode" 
+                                placeholder="Ex: ABCDE00001 ou DW863203770BR"
+                                value="ABCDE00001"
+                                required
+                            >
+                            <button type="submit" class="search-button mobile-tall">
+                                <i class="fas fa-search"></i>
+                                Rastrear
+                            </button>
+                        </div>
+                        <p class="input-hint">
+                            <i class="fas fa-info-circle"></i>
+                            digite seu CPF ou e-mail para realizar a busca.
+                        </p>
+                    </div>
+                </form>
+            </div>
+        </section>
+
+        <section class="results-section" id="resultsSection" style="display: none;">
+            <!-- Card Único: Detalhes e Histórico JUNTOS -->
+            <div class="unified-tracking-card">
+                <!-- Cabeçalho com Status e Previsão -->
+                <div class="tracking-header">
+                    <div class="header-main">
+                        <h4><i class="fas fa-box"></i> Detalhes da Entrega</h4>
+                        <div class="header-badge">
+                            <i class="fas fa-sync-alt"></i>
+                            <span>Rastreamento</span>
+                        </div>
+                    </div>
+                    
+                    <div class="tracking-summary">
+                        <div class="current-status">
+                            <span class="status-badge delivered" id="currentStatusBadge">
+                                <i class="fas fa-check-circle"></i>
+                                Entregue
+                            </span>
+                        </div>
+                        
+                        <div class="delivery-preview">
+                            <div class="preview-item">
+                                <span class="preview-label">Previsão de Entrega</span>
+                                <span class="preview-value" id="displayDeliveryDate">19/06/2017</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Timeline Moderna Integrada -->
+                <div class="timeline-integrated">
+                    <div class="timeline-header-integrated">
+                        <h5><i class="fas fa-history"></i> Histórico da Entrega</h5>
+                        <p class="timeline-subtitle">Cronologia completa dos eventos</p>
+                    </div>
+                    
+                    <div class="timeline-content-integrated" id="timeline">
+                        <!-- Timeline será carregada dinamicamente -->
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="empty-state" id="emptyState">
+            <div class="empty-content">
+                <div class="empty-icon">
+                    <i class="fas fa-box-open"></i>
+                </div>
+                <h4>Aguardando Consulta</h4>
+                <p>Insira o código de rastreamento para visualizar o status do seu presente.</p>
+                <div class="empty-tips">
+                    <div class="tip">
+                        <i class="fas fa-envelope"></i>
+                        <span>Verifique seu e-mail corporativo</span>
+                    </div>
+                    <div class="tip">
+                        <i class="fas fa-file-alt"></i>
+                        <span>O código foi fornecido pela Constellation</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="footer-minimal">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-left">
+                    <div class="contact-info">
+                        <p><i class="fas fa-envelope"></i> suporte@2log.com.br</p>
+                        <p><i class="fas fa-phone"></i> Suporte: (11) 3333-4444</p>
+                        <p class="contact-hours">Segunda a Sexta, das 8h00 às 18h00</p>
+                    </div>
+                </div>
+                <div class="footer-right">
+                    <!-- Espaço reservado para elementos futuros -->
+                </div>
+            </div>
+            
+            <div class="footer-divider"></div>
+            
+            <div class="footer-bottom">
+                <div class="footer-credits-centered">
+                    <div class="footer-signature">
+                        <a href="https://2log.com.br" target="_blank" rel="noopener noreferrer" class="signature-integrated">
+                            <div class="sig-line-top">
+                                <span class="sig-label">Powered by</span>
+                            </div>
+                            <div class="sig-line-bottom">
+                                <img src="imagens/2log-logo.png" alt="2log Smart Solutions" class="sig-logo-image">
+                            </div>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <div class="modal-overlay" id="helpModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h4><i class="fas fa-headset"></i> Suporte ao Funcionário</h4>
+                <button class="modal-close" id="closeModal">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="support-options">
+                    <div class="support-option">
+                        <i class="fas fa-building"></i>
+                        <h5>Departamento de RH</h5>
+                        <p>Para questões sobre elegibilidade ou não recebimento do código</p>
+                        <a href="mailto:rh@constellation.com" class="support-link">
+                            <i class="fas fa-envelope"></i>
+                            Enviar E-mail
+                        </a>
+                    </div>
+                    <div class="support-option">
+                        <i class="fas fa-shipping-fast"></i>
+                        <h5>Suporte de Entrega</h5>
+                        <p>Para problemas com a entrega ou status incorreto</p>
+                        <a href="tel:+551133334444" class="support-link">
+                            <i class="fas fa-phone"></i>
+                            Ligar Agora
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <p>Buscando informações da entrega...</p>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
