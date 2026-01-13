@@ -1,223 +1,250 @@
 ﻿@page "/"
+@using System
+@using System.Linq
+@using System.Collections.Generic
+@using System.Reflection
 @using Tracking.Web.Services
 @using Tracking.Web.Models
+@using Microsoft.JSInterop
 @inject ITrackingService TrackingService
 @inject ILogger<Index> Logger
+@inject IJSRuntime JS
 
-<PageTitle>Rastreamento de Pedidos</PageTitle>
+<PageTitle>Rastreamento de Pedidos - Constellation</PageTitle>
 
-<!-- Seção de Busca -->
-<section class="search-section">
-    <div class="section-intro">
-        <h3><i class="fas fa-map-marker-alt"></i> Rastreamento de Entrega</h3>
-        <p>Insira o CPF ou e-mail para acompanhar cada etapa do seu pedido</p>
-    </div>
-
-    <div class="search-card">
-        <div class="card-header">
-            <h4>Consultar Status</h4>
-            <div class="card-badge">
-                <i class="fas fa-star"></i>
-                <span>Exclusivo</span>
-            </div>
+<main class="container main-content">
+    <!-- Seção de Busca -->
+    <section class="search-section" id="searchSection">
+        <div class="section-intro">
+            <h3><i class="fas fa-map-marker-alt"></i> Rastreamento de Entrega</h3>
+            <p>Insira o CPF ou e-mail para acompanhar cada etapa do seu pedido</p>
         </div>
 
-        <EditForm Model="@searchModel" OnValidSubmit="@HandleSearch">
-            <DataAnnotationsValidator />
-            
-            <div class="form-group-elegant">
-                <label for="trackingCode">
-                    <i class="fas fa-hashtag"></i>
-                    CPF ou E-mail
-                </label>
-                <div class="input-with-button">
-                    <InputText 
-                        id="trackingCode"
-                        @bind-Value="searchModel.Code"
-                        placeholder="Digite seu CPF (somente números) ou e-mail"
-                        disabled="@isLoading"
-                        class="@(validationError != null ? "input-error" : "")" />
+        <div class="search-card">
+            <div class="card-header">
+                <h4>Consultar Status</h4>
+                <div class="card-badge">
+                    <i class="fas fa-star"></i>
+                    <span>Exclusivo</span>
+                </div>
+            </div>
 
-                    <button type="submit" class="search-button mobile-tall" disabled="@isLoading">
-                        @if (isLoading)
-                        {
-                            <i class="fas fa-spinner fa-spin"></i>
-                            <span>Buscando...</span>
-                        }
-                        else
-                        {
-                            <i class="fas fa-search"></i>
-                            <span>Rastrear</span>
-                        }
-                    </button>
+            <EditForm Model="@searchModel" OnValidSubmit="@HandleSearch" AdditionalAttributes="@(new Dictionary<string, object> { { "id", "trackingForm" } })">
+                <DataAnnotationsValidator />
+                <div class="form-group-elegant">
+                    <label for="trackingCode">
+                        <i class="fas fa-hashtag"></i>
+                        CPF ou E-mail
+                    </label>
+                    <div class="input-with-button">
+                        <InputText id="trackingCode"
+                                   @bind-Value="searchModel.Code"
+                                   placeholder="Digite seu CPF (somente números) ou e-mail"
+                                   class="@(validationError != null ? "input-error" : "")"
+                                   disabled="@isLoading" />
+
+                        <button type="submit" class="search-button mobile-tall" disabled="@isLoading">
+                            @if (isLoading)
+                            {
+                                <i class="fas fa-spinner fa-spin"></i>
+                                <span>Buscando...</span>
+                            }
+                            else
+                            {
+                                <i class="fas fa-search"></i>
+                                <span>Rastrear</span>
+                            }
+                        </button>
+                    </div>
+
+                    @if (validationError != null)
+                    {
+                        <p class="input-error-message">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            @validationError
+                        </p>
+                    }
+                    else
+                    {
+                        <p class="input-hint">
+                            <i class="fas fa-info-circle"></i>
+                            Digite seu CPF (somente números) ou e-mail cadastrado.
+                        </p>
+                    }
+                </div>
+            </EditForm>
+        </div>
+    </section>
+
+    <!-- Seção de Resultados -->
+    <section class="results-section" id="resultsSection" style="display:@(HasResults || showNotFound ? "block" : "none")">
+        <div class="unified-tracking-card" style="display:@(HasResults ? "block" : "none")">
+            <div class="tracking-header">
+                <div class="header-main">
+                    <h4><i class="fas fa-box"></i> Detalhes da Entrega</h4>
+                    <div class="header-badge sync-badge @(isSyncActive ? "" : "inactive")">
+                        <i class="fas fa-sync-alt"></i>
+                        <span>Rastreamento</span>
+                    </div>
                 </div>
 
-                @if (validationError != null)
-                {
-                    <p class="input-error-message">
-                        <i class="fas fa-exclamation-triangle"></i>
-                        @validationError
-                    </p>
-                }
-                else
-                {
-                    <p class="input-hint">
-                        <i class="fas fa-info-circle"></i>
-                        Digite seu CPF (somente números) ou e-mail cadastrado.
-                    </p>
-                }
-            </div>
-        </EditForm>
-    </div>
-</section>
-
-<!-- Seção de Resultados -->
-@if (trackingData != null && trackingData.Events.Any())
-{
-    <section class="results-section">
-        <div class="order-info-card">
-            <div class="info-header">
-                <div>
-                    <h4>Detalhes da Entrega</h4>
-                    <div class="order-status">
+                <div class="tracking-summary">
+                    <div class="current-status">
                         <span class="status-badge @GetStatusClass()">
                             <i class="fas @GetStatusIcon()"></i>
                             @GetCurrentStatus()
                         </span>
                     </div>
-                </div>
-                <div class="order-meta">
-                    <div class="meta-item">
-                        <span class="meta-label">Pedido:</span>
-                        <span class="meta-value">@trackingData.OrderNumber</span>
-                    </div>
-                    <div class="meta-item highlight">
-                        <span class="meta-label">Previsão:</span>
-                        <span class="meta-value">@trackingData.PredictionDate</span>
+
+                    <div class="delivery-preview">
+                        @if (!string.IsNullOrEmpty(viewModel?.PredictionDate))
+                        {
+                            <div class="preview-item">
+                                <span class="preview-label">Previsão de Entrega</span>
+                                <span class="preview-value">@viewModel.PredictionDate</span>
+                            </div>
+                        }
                     </div>
                 </div>
             </div>
 
-            <div class="info-grid">
-                <div class="grid-item">
-                    <span class="grid-label">Data do Pedido</span>
-                    <span class="grid-value">@trackingData.OrderDate</span>
+            <div class="timeline-integrated">
+                <div class="timeline-header-integrated">
+                    <h5><i class="fas fa-history"></i> Histórico da Entrega</h5>
+                    <p class="timeline-subtitle">Cronologia completa dos eventos (@(viewModel?.Events?.Count ?? 0) evento(s))</p>
                 </div>
-                @if (!string.IsNullOrEmpty(trackingData.IdErp))
-                {
-                    <div class="grid-item">
-                        <span class="grid-label">ID ERP</span>
-                        <span class="grid-value">@trackingData.IdErp</span>
-                    </div>
-                }
-            </div>
-        </div>
 
-        <div class="timeline-modern">
-            <div class="timeline-header">
-                <h4><i class="fas fa-history"></i> Histórico da Entrega</h4>
-                <p>Cronologia completa dos eventos (@trackingData.Events.Count evento(s))</p>
-            </div>
-
-            <div class="timeline-content">
-                @foreach (var evt in trackingData.Events)
-                {
-                    <div class="timeline-item @GetEventClass(evt)">
-                        <div class="timeline-marker">
-                            <i class="fas @GetEventIcon(evt)"></i>
-                        </div>
-                        <div class="timeline-content-box">
-                            <div class="timeline-date">@evt.Date</div>
-                            <div class="timeline-title">@evt.Status</div>
-                            <div class="timeline-description">@evt.Description</div>
-                            @if (!string.IsNullOrEmpty(evt.Complement))
-                            {
-                                <div class="timeline-complement">
-                                    <i class="fas fa-info-circle"></i>
-                                    @evt.Complement
+                <div class="timeline-content-integrated" id="timeline">
+                    @if (viewModel?.Events != null)
+                    {
+                        @foreach (var evt in viewModel.Events)
+                        {
+                            var evtClass = GetEventClass(evt);
+                            <div class="timeline-item @evtClass">
+                                <div class="timeline-marker">
+                                    <i class="fas @GetEventIcon(evt)"></i>
                                 </div>
-                            }
+                                <div class="timeline-content-inner">
+                                    <div class="timeline-date">@evt.Date</div>
+                                    <div class="timeline-title">@evt.Status</div>
+                                    <div class="timeline-description">@evt.Description</div>
+                                    @if (!string.IsNullOrEmpty(evt.Complement))
+                                    {
+                                        <div class="timeline-complement">
+                                            <i class="fas fa-info-circle"></i>
+                                            @evt.Complement
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- NOT FOUND CARD (único card de erro) -->
+        @if (showNotFound)
+        {
+            <div id="notFoundState" class="not-found-state">
+                <div class="not-found-card">
+                    <div class="not-found-header">
+                        <div class="not-found-icon">
+                            <i class="fas fa-search"></i>
+                        </div>
+                        <h4>Código não encontrado</h4>
+                        <p class="not-found-message" id="errorMessage">@(!string.IsNullOrEmpty(errorMessage) ? errorMessage : "CPF ou e-mail não localizado.")</p>
+                    </div>
+
+                    <div class="not-found-content">
+                        <div class="suggestions">
+                            <ul class="suggestion-list">
+                                <li>
+                                    <i class="fas fa-check-circle"></i>
+                                    <span>Verifique se digitou corretamente seu CPF ou e-mail</span>
+                                </li>
+                            </ul>
+                        </div>
+
+                        <div class="action-buttons">
+                            <button class="action-button primary" @onclick="async () => await ResetToInitialState()">
+                                <i class="fas fa-redo"></i>
+                                Tentar Novamente
+                            </button>
                         </div>
                     </div>
-                }
+                </div>
             </div>
-        </div>
+        }
     </section>
-}
-else if (showNotFound)
-{
-    <!-- Mensagem de Não Encontrado -->
-    <section class="empty-state">
+
+    <!-- Estado Inicial e Erro (SEM showNotFound) -->
+    <section class="empty-state" id="emptyState" style="display:@(ShowEmptyState ? "block" : "none")">
         <div class="empty-content">
-            <div class="empty-icon error">
-                <i class="fas fa-exclamation-circle"></i>
-            </div>
-            <h4>Pedido Não Encontrado</h4>
-            <p>@(string.IsNullOrEmpty(errorMessage) ? "Não localizamos nenhum pedido com este CPF ou e-mail." : errorMessage)</p>
-            <div class="empty-tips">
-                <div class="tip">
-                    <i class="fas fa-user-check"></i>
-                    <span>Verifique se o CPF ou e-mail estão corretos</span>
+            @if (showError)
+            {
+                <div class="empty-icon error">
+                    <i class="fas fa-exclamation-triangle"></i>
                 </div>
-                <div class="tip">
-                    <i class="fas fa-clock"></i>
-                    <span>Pedidos recentes podem levar alguns minutos para aparecer</span>
+                <h4>Erro ao Consultar</h4>
+                <p>@errorMessage</p>
+                <button class="btn-primary" @onclick="ClearError">
+                    <i class="fas fa-redo"></i>
+                    Tentar Novamente
+                </button>
+            }
+            else
+            {
+                <div class="empty-icon">
+                    <i class="fas fa-box-open"></i>
                 </div>
-            </div>
+                <h4>Aguardando Consulta</h4>
+                <p>Insira o CPF ou e-mail para visualizar o status do seu pedido.</p>
+                <div class="empty-tips">
+                    <div class="tip">
+                        <i class="fas fa-shield-alt"></i>
+                        <span>Seus dados são protegidos e não são armazenados</span>
+                    </div>
+                    <div class="tip">
+                        <i class="fas fa-clock"></i>
+                        <span>Consulta em tempo real</span>
+                    </div>
+                </div>
+            }
         </div>
     </section>
-}
-else if (showError)
-{
-    <!-- Mensagem de Erro -->
-    <section class="empty-state">
-        <div class="empty-content">
-            <div class="empty-icon error">
-                <i class="fas fa-exclamation-triangle"></i>
-            </div>
-            <h4>Erro ao Consultar</h4>
-            <p>@errorMessage</p>
-            <button class="btn-primary" @onclick="ClearError">
-                <i class="fas fa-redo"></i>
-                Tentar Novamente
-            </button>
-        </div>
-    </section>
-}
-else if (!hasSearched)
-{
-    <!-- Estado Inicial -->
-    <section class="empty-state">
-        <div class="empty-content">
-            <div class="empty-icon">
-                <i class="fas fa-box-open"></i>
-            </div>
-            <h4>Aguardando Consulta</h4>
-            <p>Insira o CPF ou e-mail para visualizar o status do seu pedido.</p>
-            <div class="empty-tips">
-                <div class="tip">
-                    <i class="fas fa-shield-alt"></i>
-                    <span>Seus dados são protegidos e não são armazenados</span>
-                </div>
-                <div class="tip">
-                    <i class="fas fa-clock"></i>
-                    <span>Consulta em tempo real</span>
-                </div>
-            </div>
-        </div>
-    </section>
-}
+</main>
 
 @code {
-    private SearchModel searchModel = new();
-    private FrontendTrackingResponse? trackingData;
+    // UI view models
+    private class UiEvent
+    {
+        public string Date { get; set; } = "";
+        public string Status { get; set; } = "";
+        public string Description { get; set; } = "";
+        public string? Complement { get; set; }
+        public int InternalCode { get; set; }
+    }
 
+    private class UiTracking
+    {
+        public string? OrderNumber { get; set; }
+        public string? PredictionDate { get; set; }
+        public List<UiEvent> Events { get; set; } = new();
+    }
+
+    private SearchModel searchModel = new();
+    private UiTracking? viewModel;
     private bool isLoading = false;
     private bool hasSearched = false;
     private bool showNotFound = false;
     private bool showError = false;
     private string? validationError;
     private string? errorMessage;
+    private bool isSyncActive = false;
+
+    private bool HasResults => viewModel != null && viewModel.Events?.Any() == true;
+    private bool ShowEmptyState => !HasResults && !showNotFound && (showError || !hasSearched);
 
     public class SearchModel
     {
@@ -230,7 +257,7 @@ else if (!hasSearched)
         showNotFound = false;
         showError = false;
         errorMessage = null;
-        trackingData = null;
+        viewModel = null;
 
         if (string.IsNullOrWhiteSpace(searchModel.Code))
         {
@@ -239,7 +266,6 @@ else if (!hasSearched)
         }
 
         var cleanCode = new string(searchModel.Code.Where(c => char.IsLetterOrDigit(c) || c == '@' || c == '.').ToArray());
-
         if (cleanCode.Length < 3)
         {
             validationError = "CPF ou e-mail inválido";
@@ -248,6 +274,7 @@ else if (!hasSearched)
 
         isLoading = true;
         hasSearched = true;
+        isSyncActive = true;
         StateHasChanged();
 
         try
@@ -259,127 +286,295 @@ else if (!hasSearched)
             if (apiResponse == null)
             {
                 showNotFound = true;
-                errorMessage = "Não foi possível consultar o rastreamento. Tente novamente.";
-                Logger.LogInformation("Nenhum resultado (null) para código: {Code}", MaskCode(cleanCode));
-            }
-            else if (apiResponse.Code == 404 || apiResponse.Message.Contains("não localizado", StringComparison.OrdinalIgnoreCase))
-            {
-                showNotFound = true;
-                errorMessage = "CPF ou e-mail não encontrado. Verifique os dados e tente novamente.";
-                Logger.LogInformation("API retornou Code={Code}, Message={Message} para código: {Code}", 
-                    apiResponse.Code, apiResponse.Message, MaskCode(cleanCode));
-            }
-            else if (apiResponse.Message != "OK")
-            {
-                showNotFound = true;
-                errorMessage = apiResponse.Message;
-                Logger.LogInformation("API retornou: {Message} para código: {Code}", 
-                    apiResponse.Message, MaskCode(cleanCode));
-            }
-            else if (!apiResponse.ShippingEvents.Any(e => 
-                e.DtShipping.HasValue && 
-                !string.IsNullOrEmpty(e.DsCode) && 
-                e.InternalCode.HasValue && 
-                e.InternalCode.Value > 0))
-            {
-                showNotFound = true;
-                errorMessage = "Nenhum evento de rastreamento disponível para este pedido.";
-                Logger.LogInformation("Eventos inválidos para código: {Code}", MaskCode(cleanCode));
+                errorMessage = "Nenhum resultado encontrado para o código informado.";
+                Logger.LogInformation("Nenhum resultado para código: {Code}", MaskCode(cleanCode));
             }
             else
             {
-                trackingData = new FrontendTrackingResponse
+                // 👇 BUSCAR PREDICTION DO INFO
+                string? prediction = GetPropString(apiResponse, "Info.Prediction", "info.prediction", "Prediction", "prediction");
+                
+                // Se prediction vier com hora, formatar apenas data
+                if (!string.IsNullOrEmpty(prediction))
                 {
-                    OrderNumber = apiResponse.Info?.Number,
-                    OrderDate = apiResponse.Info?.Date,
-                    PredictionDate = apiResponse.Info?.Prediction,
-                    IdErp = apiResponse.Info?.IdErp,
-                    Message = apiResponse.Message,
-                    Events = apiResponse.ShippingEvents
-                        .Where(e => 
-                            e.DtShipping.HasValue && 
-                            !string.IsNullOrEmpty(e.DsCode) && 
-                            e.InternalCode.HasValue && 
-                            e.InternalCode.Value > 0)
-                        .OrderByDescending(e => e.DtShipping!.Value)
-                        .Select(e => new FrontendEvent
+                    var dtPrediction = TryParseDateTime(prediction);
+                    if (dtPrediction.HasValue)
+                    {
+                        prediction = dtPrediction.Value.ToString("dd/MM/yyyy");
+                    }
+                }
+
+                var events = new List<UiEvent>();
+                var eventsObj = GetPropValue(apiResponse, "ShippingEvents", "shippingevents", "Shipping", "Events", "events");
+                
+                if (eventsObj is System.Collections.IEnumerable enumerable)
+                {
+                    Logger.LogInformation("🔵 Total de eventos encontrados: {Count}", 
+                        enumerable.Cast<object>().Count());
+
+                    foreach (var e in enumerable)
+                    {
+                        // 👇 MAPEAMENTO CORRETO DOS CAMPOS DA API
+                        var dtShipping = GetPropString(e, "DtShipping", "dtshipping", "Date", "date");
+                        var dsCode = GetPropString(e, "DsCode", "dscode", "StatusCode", "status_code");
+                        var message = GetPropString(e, "Message", "message", "Description", "description");
+                        var complement = GetPropString(e, "Complement", "complement", "Complemento", "complemento");
+                        var internalCodeObj = GetPropValue(e, "InternalCode", "internalcode", "InternalCodeId", "internal_code");
+                        int internalCode = ParseIntOrZero(internalCodeObj);
+
+                        Logger.LogInformation("📦 Evento mapeado:\n" +
+                            "  - InternalCode: {Code}\n" +
+                            "  - DtShipping: {Date}\n" +
+                            "  - DsCode: {DsCode}\n" +
+                            "  - Message: {Message}\n" +
+                            "  - Complement: {Comp}",
+                            internalCode, dtShipping, dsCode, message, complement);
+
+                        events.Add(new UiEvent
                         {
-                            Date = e.DtShipping!.Value.ToString("dd/MM/yyyy HH:mm"),
-                            Status = e.DsCode,
-                            Description = e.Message,
-                            Complement = e.Complement,
-                            InternalCode = e.InternalCode
-                        })
+                            Date = TryFormatDate(dtShipping),
+                            Status = dsCode ?? message ?? "Status Desconhecido",
+                            Description = message ?? complement ?? "Sem descrição",
+                            Complement = complement,
+                            InternalCode = internalCode
+                        });
+                    }
+                }
+
+                viewModel = new UiTracking
+                {
+                    OrderNumber = GetPropString(apiResponse, "Info.Number", "info.number", "Number", "number"),
+                    PredictionDate = prediction,
+                    Events = events
+                        .Where(ev => !string.IsNullOrEmpty(ev.Date))
+                        .OrderByDescending(ev => TryParseDateTime(ev.Date) ?? DateTime.MinValue)
+                        .Concat(events.Where(ev => string.IsNullOrEmpty(ev.Date)))
                         .ToList()
                 };
 
-                Logger.LogInformation("Rastreamento encontrado: {OrderNumber} com {Count} eventos",
-                    trackingData.OrderNumber, trackingData.Events.Count);
+                if (viewModel.Events.Count == 0)
+                {
+                    showNotFound = true;
+                    errorMessage = "Nenhum evento de rastreamento disponível para este pedido.";
+                    Logger.LogInformation("Eventos inválidos para código: {Code}", MaskCode(cleanCode));
+                }
+                else
+                {
+                    Logger.LogInformation("Rastreamento encontrado: Pedido={Order}, Previsão={Prediction}, Eventos={Count}", 
+                        viewModel.OrderNumber, viewModel.PredictionDate, viewModel.Events.Count);
+                }
             }
         }
         catch (Exception ex)
         {
             showError = true;
             errorMessage = "Erro inesperado ao buscar rastreamento. Tente novamente mais tarde.";
-            Logger.LogError(ex, "Erro inesperado ao buscar rastreamento para {Code}", MaskCode(cleanCode));
+            Logger.LogError(ex, "Erro ao buscar rastreamento para {Code}", MaskCode(cleanCode));
         }
         finally
         {
             isLoading = false;
+            isSyncActive = false;
             StateHasChanged();
+
+            await PerformScrollToResults();
         }
     }
 
+    private async Task PerformScrollToResults()
+    {
+        await Task.Delay(200);
+
+        string? targetId = HasResults || showNotFound ? "resultsSection" : 
+                           showError ? "emptyState" : null;
+
+        if (string.IsNullOrEmpty(targetId)) return;
+
+        try
+        {
+            await JS.InvokeAsync<bool>("scrollToElement", targetId);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Erro ao executar scroll");
+        }
+    }
+
+    private static string? GetPropString(object? src, params string[] names)
+    {
+        if (src == null) return null;
+        
+        foreach (var n in names)
+        {
+            // 👇 SUPORTAR NOTAÇÃO "Info.Prediction"
+            if (n.Contains('.'))
+            {
+                var parts = n.Split('.');
+                object? current = src;
+                
+                foreach (var part in parts)
+                {
+                    current = GetPropValue(current, part);
+                    if (current == null) break;
+                }
+                
+                if (current != null)
+                {
+                    if (current is string s) return s;
+                    if (current is DateTime dt) return dt.ToString("o");
+                    return current.ToString();
+                }
+            }
+            else
+            {
+                var v = GetPropValue(src, n);
+                if (v == null) continue;
+                if (v is string s) return s;
+                if (v is DateTime dt) return dt.ToString("o");
+                return v.ToString();
+            }
+        }
+        
+        return null;
+    }
+
+    private static object? GetPropValue(object? src, params string[] names)
+    {
+        if (src == null) return null;
+        var t = src.GetType();
+
+        foreach (var name in names)
+        {
+            var pi = t.GetProperty(name, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
+            if (pi != null)
+            {
+                try { return pi.GetValue(src); } catch { }
+            }
+
+            var fi = t.GetField(name, BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
+            if (fi != null)
+            {
+                try { return fi.GetValue(src); } catch { }
+            }
+
+            var pi2 = t.GetProperties(BindingFlags.Public | BindingFlags.Instance)
+                       .FirstOrDefault(p => string.Equals(p.Name, name, StringComparison.OrdinalIgnoreCase));
+            if (pi2 != null)
+            {
+                try { return pi2.GetValue(src); } catch { }
+            }
+        }
+
+        if (src is System.Collections.IDictionary dict)
+        {
+            foreach (var n in names)
+            {
+                if (dict.Contains(n)) return dict[n];
+            }
+        }
+
+        return null;
+    }
+
+    private static int ParseIntOrZero(object? v)
+    {
+        if (v == null) return 0;
+        if (v is int i) return i;
+        if (v is long l) return (int)l;
+        if (int.TryParse(v.ToString(), out var r)) return r;
+        return 0;
+    }
+
+    private static DateTime? TryParseDateTime(string? s)
+    {
+        if (string.IsNullOrEmpty(s)) return null;
+        if (DateTime.TryParse(s, out var dt)) return dt;
+        if (DateTime.TryParseExact(s, new[] { "yyyy-MM-dd HH:mm:ss", "yyyy-MM-ddTHH:mm:ss.FFFFFF", "yyyy-MM-ddTHH:mm:ss" }, null, System.Globalization.DateTimeStyles.None, out dt))
+            return dt;
+        return null;
+    }
+
+    private static string TryFormatDate(string? s)
+    {
+        var dt = TryParseDateTime(s);
+        if (dt.HasValue) return dt.Value.ToString("dd/MM/yyyy HH:mm");
+        return s ?? "";
+    }
+
+    private static string? GetFirstEventDate(object apiResponse)
+    {
+        try
+        {
+            var eventsObj = GetPropValue(apiResponse, "ShippingEvents", "shippingevents", "Shipping", "Events", "events");
+            if (eventsObj is System.Collections.IEnumerable enumerable)
+            {
+                foreach (var item in enumerable)
+                {
+                    var d = GetPropString(item, "Date", "date", "DtShipping", "dtShipping", "final", "Final");
+                    if (!string.IsNullOrEmpty(d))
+                    {
+                        // 👇 FORMATAR APENAS DATA (dd/MM/yyyy) SEM HORA
+                        var dt = TryParseDateTime(d);
+                        if (dt.HasValue)
+                        {
+                            return dt.Value.ToString("dd/MM/yyyy"); // ✅ SEM HORA
+                        }
+                        return d; // Fallback se parsing falhar
+                    }
+                }
+            }
+        }
+        catch { }
+        return null;
+    }
+
+    // UI helpers
     private string GetCurrentStatus()
     {
-        if (trackingData?.Events == null || !trackingData.Events.Any())
-            return "Aguardando";
-
-        return trackingData.Events.First().Status;
+        if (viewModel?.Events == null || !viewModel.Events.Any()) return "Aguardando";
+        return viewModel.Events.First().Status;
     }
 
     private string GetStatusClass()
     {
-        var lastEvent = trackingData?.Events?.FirstOrDefault();
-        if (lastEvent == null) return "pending";
-
-        return lastEvent.InternalCode switch
+        var last = viewModel?.Events?.FirstOrDefault();
+        if (last == null) return "pending";
+        return last.InternalCode switch
         {
             90 => "delivered",
-            75 => "in-transit",
-            _ => "pending"
+            13 => "canceled",
+            _ => "in-transit"
         };
     }
 
     private string GetStatusIcon()
     {
-        var lastEvent = trackingData?.Events?.FirstOrDefault();
-        if (lastEvent == null) return "fa-clock";
-
-        return lastEvent.InternalCode switch
+        var last = viewModel?.Events?.FirstOrDefault();
+        if (last == null) return "fa-clock";
+        return last.InternalCode switch
         {
             90 => "fa-check-circle",
-            75 => "fa-truck",
+            13 => "fa-times-circle",
             _ => "fa-box"
         };
     }
 
-    private string GetEventClass(FrontendEvent evt)
+    private string GetEventClass(UiEvent evt)
     {
-        return evt.InternalCode switch
+        // Primeiro evento = ACTIVE (azul pulsante)
+        if (viewModel?.Events?.FirstOrDefault() == evt)
         {
-            90 => "completed",
-            75 => "active",
-            _ => ""
-        };
-    }
+            return "active";
+        }
 
-    private string GetEventIcon(FrontendEvent evt)
+        // Outros eventos = COMPLETED (verde)
+        return "completed";
+    }
+    private string GetEventIcon(UiEvent evt)
     {
         return evt.InternalCode switch
         {
             90 => "fa-check-circle",
-            75 => "fa-truck",
             _ => "fa-circle"
         };
     }
@@ -390,10 +585,32 @@ else if (!hasSearched)
         errorMessage = null;
     }
 
+    private async Task ResetToInitialState()
+    {
+        searchModel.Code = string.Empty;
+        showNotFound = false;
+        showError = false;
+        errorMessage = null;
+        viewModel = null;
+        hasSearched = false;
+        
+        StateHasChanged();
+        
+        try
+        {
+            await Task.Delay(100); // Aguarda renderização
+            await JS.InvokeVoidAsync("scrollToElement", "searchSection");
+            Logger.LogInformation("🔍 Scroll para seção de busca executado após reset");
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Erro ao executar scroll para seção de busca");
+        }
+    }
+
     private string MaskCode(string code)
     {
         if (string.IsNullOrEmpty(code)) return "****";
-
         if (code.Contains('@'))
         {
             var parts = code.Split('@');
@@ -402,12 +619,7 @@ else if (!hasSearched)
                 return $"{parts[0][0]}***{parts[0][^1]}@{parts[1]}";
             }
         }
-
-        if (code.Length >= 4)
-        {
-            return new string('*', code.Length - 2) + code[^2..];
-        }
-
+        if (code.Length >= 4) return new string('*', code.Length - 2) + code[^2..];
         return "****";
     }
 }

@@ -122,13 +122,13 @@ try
 
             if (string.IsNullOrWhiteSpace(req.Code))
             {
-                logger.LogWarning("📛 Requisição sem código do IP {IP}", 
+                logger.LogWarning("📛 Requisição sem código do IP {IP}",
                     http.Connection.RemoteIpAddress);
                 return Results.BadRequest(new { error = "Código obrigatório" });
             }
 
             var ip = http.Connection.RemoteIpAddress?.ToString() ?? "unknown";
-            
+
             if (!await rateLimitService.TryIncrementAsync($"ip:{ip}", cfg.RateLimit.PerIpLimit, cfg.RateLimit.PerIpWindowSeconds))
             {
                 logger.LogWarning("🚫 Rate limit IP {IP}", ip);
@@ -160,7 +160,7 @@ try
             try
             {
                 logger.LogInformation("🔵 Consultando TrackingService para: {Code}", req.Code);
-                
+
                 var apiResponse = await trackingService.GetTrackingAsync(req.Code);
 
                 if (apiResponse == null)
@@ -174,26 +174,29 @@ try
                 if (apiResponse.Message != "OK")
                 {
                     logger.LogInformation("ℹ️ Mensagem: {Message}", apiResponse.Message);
-                    
+
                     if (apiResponse.Message.Contains("não localizado", StringComparison.OrdinalIgnoreCase))
                     {
-                        return Results.NotFound(new { 
+                        return Results.NotFound(new
+                        {
                             error = "CPF ou e-mail não localizado",
                             message = apiResponse.Message
                         });
                     }
-                    
-                    return Results.Ok(new { 
-                        message = apiResponse.Message, 
+
+                    return Results.Ok(new
+                    {
+                        message = apiResponse.Message,
                         found = false
                     });
                 }
 
-                if (apiResponse.ShippingEvents == null || 
+                if (apiResponse.ShippingEvents == null ||
                     !apiResponse.ShippingEvents.Any(e => e.DtShipping.HasValue && !string.IsNullOrEmpty(e.DsCode)))
                 {
                     logger.LogWarning("⚠️ Sem eventos válidos");
-                    return Results.NotFound(new { 
+                    return Results.NotFound(new
+                    {
                         error = "Sem eventos",
                         orderInfo = apiResponse.Info
                     });

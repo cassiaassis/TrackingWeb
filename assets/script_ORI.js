@@ -1,4 +1,4 @@
-// Dados de exemplo
+// Dados de exemplo para quando encontrar
 const sampleData = {
     "trackingCode": "ABCDE00001",
     "carrierCode": "DW863203770BR",
@@ -37,6 +37,11 @@ const sampleData = {
     ]
 };
 
+// Dados para quando não encontrar
+const notFoundData = {
+    "message": "CPF ou e-mail não localizado."
+};
+
 // Elementos DOM
 const trackingForm = document.getElementById('trackingForm');
 const resultsSection = document.getElementById('resultsSection');
@@ -45,6 +50,13 @@ const timeline = document.getElementById('timeline');
 const loadingOverlay = document.getElementById('loadingOverlay');
 const helpModal = document.getElementById('helpModal');
 const closeModal = document.getElementById('closeModal');
+
+// Novos elementos para estados
+const notFoundState = document.getElementById('notFoundState');
+const foundState = document.getElementById('foundState');
+const errorMessage = document.getElementById('errorMessage');
+const tryAgainButton = document.getElementById('tryAgainButton');
+const contactSupportButton = document.getElementById('contactSupportButton');
 
 // Mapeamento de status
 const statusConfig = {
@@ -131,8 +143,8 @@ function updateTimeline(events) {
     });
 }
 
-// Mostrar resultados
-function showResults(data) {
+// Mostrar estado: ENCONTRADO
+function showFoundState(data) {
     // Calcular e mostrar data de entrega
     const lastEventDate = new Date(data.events[0].date);
     document.getElementById('displayDeliveryDate').textContent = formatDate(lastEventDate);
@@ -147,22 +159,48 @@ function showResults(data) {
     // Atualizar timeline
     updateTimeline(data.events);
     
-    // Mostrar resultados e esconder estado vazio
+    // Mostrar estado encontrado e esconder outros
     resultsSection.style.display = 'block';
+    foundState.style.display = 'block';
+    notFoundState.style.display = 'none';
     emptyState.style.display = 'none';
     
     // Scroll suave para resultados
     resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
-// Simular busca
+// Mostrar estado: NÃO ENCONTRADO
+function showNotFoundState(errorData) {
+    // Atualizar mensagem de erro
+    errorMessage.textContent = errorData.message || "Código não encontrado. Verifique se digitou corretamente.";
+    
+    // Mostrar estado não encontrado e esconder outros
+    resultsSection.style.display = 'block';
+    notFoundState.style.display = 'block';
+    foundState.style.display = 'none';
+    emptyState.style.display = 'none';
+    
+    // Scroll suave para resultados
+    resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// Simular busca com possibilidade de não encontrar
 function fetchTrackingData(code) {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
         setTimeout(() => {
-            if (code === 'ABCDE00001' || code === 'DW863203770BR' || code === 'TESTE001') {
-                resolve(sampleData);
+            // Códigos válidos
+            const validCodes = ['ABCDE00001', 'DW863203770BR', 'TESTE001'];
+            
+            if (validCodes.includes(code)) {
+                resolve({
+                    success: true,
+                    data: sampleData
+                });
             } else {
-                resolve(null);
+                resolve({
+                    success: false,
+                    data: notFoundData
+                });
             }
         }, 1500);
     });
@@ -177,11 +215,16 @@ function hideLoading() {
     loadingOverlay.style.display = 'none';
 }
 
-// Mostrar erro
-function showError() {
-    alert('Código não encontrado. Verifique se digitou corretamente.');
-    document.getElementById('trackingCode').focus();
-    document.getElementById('trackingCode').select();
+// Função para resetar o formulário e voltar ao estado inicial
+function resetToInitialState() {
+    const trackingInput = document.getElementById('trackingCode');
+    trackingInput.value = '';
+    trackingInput.focus();
+    
+    resultsSection.style.display = 'none';
+    notFoundState.style.display = 'none';
+    foundState.style.display = 'none';
+    emptyState.style.display = 'block';
 }
 
 // Event Listeners
@@ -204,20 +247,34 @@ document.addEventListener('DOMContentLoaded', function() {
         showLoading();
         
         try {
-            const data = await fetchTrackingData(code);
+            const result = await fetchTrackingData(code);
             hideLoading();
             
-            if (data) {
-                showResults(data);
+            if (result.success) {
+                showFoundState(result.data);
             } else {
-                showError();
+                showNotFoundState(result.data);
             }
         } catch (error) {
             hideLoading();
-            showError();
+            showNotFoundState({ message: "Erro na busca. Tente novamente." });
             console.error('Erro:', error);
         }
     });
+    
+    // Botão "Tentar Novamente"
+    if (tryAgainButton) {
+        tryAgainButton.addEventListener('click', function() {
+            resetToInitialState();
+        });
+    }
+    
+    // Botão "Falar com Suporte"
+    if (contactSupportButton) {
+        contactSupportButton.addEventListener('click', function() {
+            helpModal.style.display = 'flex';
+        });
+    }
     
     // Modal
     const helpButton = document.getElementById('helpButton');

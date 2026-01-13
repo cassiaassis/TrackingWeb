@@ -105,14 +105,14 @@ function formatDateForTimeline(dateString) {
 // Atualizar timeline
 function updateTimeline(events) {
     timeline.innerHTML = '';
-    
+
     events.forEach((event, index) => {
         const eventClass = index === 0 ? 'active' : 'completed';
         const eventIcon = index === 0 ? 'fa-check-circle' : 'fa-circle';
-        
+
         const timelineItem = document.createElement('div');
         timelineItem.className = `timeline-item ${eventClass}`;
-        
+
         timelineItem.innerHTML = `
             <div class="timeline-marker">
                 <i class="fas ${eventIcon}"></i>
@@ -126,7 +126,7 @@ function updateTimeline(events) {
                 <p class="timeline-description">${event.description}</p>
             </div>
         `;
-        
+
         timeline.appendChild(timelineItem);
     });
 }
@@ -139,25 +139,25 @@ function showResults(data) {
     document.getElementById('displayCarrierCode').textContent = data.carrierCode;
     document.getElementById('displayOrderNumber').textContent = data.idItemParceiro;
     document.getElementById('displayPartnerId').textContent = data.partnerItemId.substring(0, 20) + '...';
-    
+
     // Calcular e mostrar data de entrega
     const lastEventDate = new Date(data.events[0].date);
     document.getElementById('displayDeliveryDate').textContent = formatDate(lastEventDate);
-    
+
     // Atualizar status badge
     const currentEvent = data.events[0];
     const statusInfo = statusConfig[currentEvent.name] || { status: 'Processando', class: 'pending' };
     const statusBadge = document.getElementById('currentStatusBadge');
     statusBadge.className = `status-badge ${statusInfo.class}`;
     statusBadge.innerHTML = `<i class="fas ${statusInfo.icon}"></i> ${statusInfo.status}`;
-    
+
     // Atualizar timeline
     updateTimeline(data.events);
-    
+
     // Mostrar resultados e esconder estado vazio
     resultsSection.style.display = 'block';
     emptyState.style.display = 'none';
-    
+
     // Scroll suave para resultados
     resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
@@ -192,15 +192,15 @@ function showError() {
 }
 
 // Event Listeners
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     // Configurar input
     const trackingInput = document.getElementById('trackingCode');
     trackingInput.focus();
     trackingInput.select();
-    
+
     // Navegação do menu
     document.querySelectorAll('.nav-link').forEach(link => {
-        link.addEventListener('click', function(e) {
+        link.addEventListener('click', function (e) {
             e.preventDefault();
             // Remove active class de todos os itens
             document.querySelectorAll('.nav-item').forEach(item => {
@@ -210,23 +210,23 @@ document.addEventListener('DOMContentLoaded', function() {
             this.closest('.nav-item').classList.add('active');
         });
     });
-    
+
     // Form submission
-    trackingForm.addEventListener('submit', async function(e) {
+    trackingForm.addEventListener('submit', async function (e) {
         e.preventDefault();
-        
+
         const code = trackingInput.value.trim();
         if (!code) {
             trackingInput.focus();
             return;
         }
-        
+
         showLoading();
-        
+
         try {
             const data = await fetchTrackingData(code);
             hideLoading();
-            
+
             if (data) {
                 showResults(data);
             } else {
@@ -238,23 +238,23 @@ document.addEventListener('DOMContentLoaded', function() {
             console.error('Erro:', error);
         }
     });
-    
+
     // Modal
     const helpButton = document.getElementById('helpButton');
     if (helpButton) {
-        helpButton.addEventListener('click', function() {
+        helpButton.addEventListener('click', function () {
             helpModal.style.display = 'flex';
         });
     }
-    
+
     if (closeModal) {
-        closeModal.addEventListener('click', function() {
+        closeModal.addEventListener('click', function () {
             helpModal.style.display = 'none';
         });
     }
-    
+
     if (helpModal) {
-        helpModal.addEventListener('click', function(e) {
+        helpModal.addEventListener('click', function (e) {
             if (e.target === helpModal) {
                 helpModal.style.display = 'none';
             }

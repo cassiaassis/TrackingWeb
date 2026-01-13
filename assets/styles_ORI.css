@@ -346,7 +346,150 @@ body {
     color: #9ca3af;
 }
 
-/* ===== CARD UNIFICADO: DETALHES + HISTÓRICO ===== */
+/* ===== ESTADO: NÃO ENCONTRADO ===== */
+.not-found-state {
+    animation: fadeIn 0.3s ease;
+}
+
+.not-found-card {
+    background: white;
+    border-radius: var(--radius-xl);
+    padding: 40px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+    border: 1px solid #e0e0e0;
+    max-width: 700px;
+    margin: 0 auto 40px auto;
+    text-align: center;
+}
+
+.not-found-header {
+    margin-bottom: 32px;
+}
+
+.not-found-icon {
+    width: 80px;
+    height: 80px;
+    background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 36px;
+    color: #92400e;
+    margin: 0 auto 20px;
+    border: 4px solid #fef3c7;
+}
+
+.not-found-card h4 {
+    font-size: 24px;
+    font-weight: 700;
+    color: #1a365d;
+    margin-bottom: 12px;
+}
+
+.not-found-message {
+    font-size: 16px;
+    color: #666666;
+    line-height: 1.6;
+    max-width: 500px;
+    margin: 0 auto;
+}
+
+.not-found-content {
+    text-align: left;
+}
+
+.suggestions h5 {
+    font-size: 18px;
+    font-weight: 600;
+    color: #1a365d;
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+.suggestion-list {
+    list-style: none;
+    margin-bottom: 32px;
+}
+
+.suggestion-list li {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 16px;
+    background: #f9fafb;
+    border-radius: var(--radius);
+    margin-bottom: 12px;
+    border-left: 4px solid #f59e0b;
+    transition: var(--transition);
+}
+
+.suggestion-list li:hover {
+    background: #f3f4f6;
+    transform: translateX(4px);
+}
+
+.suggestion-list li i {
+    color: #f59e0b;
+    font-size: 18px;
+    margin-top: 2px;
+    flex-shrink: 0;
+}
+
+.suggestion-list li span {
+    font-size: 15px;
+    color: #666666;
+    line-height: 1.5;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.action-button {
+    padding: 16px 32px;
+    border-radius: var(--radius);
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border: 2px solid transparent;
+    min-width: 200px;
+    justify-content: center;
+}
+
+.action-button.primary {
+    background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
+    color: white;
+}
+
+.action-button.primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(37, 99, 235, 0.2);
+}
+
+.action-button.secondary {
+    background: white;
+    color: #2563eb;
+    border-color: #2563eb;
+}
+
+.action-button.secondary:hover {
+    background: #f0f7ff;
+    transform: translateY(-2px);
+}
+
+/* ===== ESTADO: ENCONTRADO (CARD UNIFICADO) ===== */
+.found-state {
+    animation: fadeIn 0.3s ease;
+}
+
 .unified-tracking-card {
     background: white;
     border-radius: var(--radius-xl);
@@ -406,6 +549,18 @@ body {
     color: #f59e0b;
 }
 
+/* Ícone de sincronização minimalista */
+.sync-badge .fa-sync-alt {
+    color: #6b7280; /* Cinza neutro e discreto */
+    opacity: 0.9;
+    animation: slowSpin 4s linear infinite;
+}
+
+@keyframes slowSpin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
 .header-badge {
     display: flex;
     align-items: center;
@@ -417,10 +572,6 @@ body {
     font-size: 14px;
     font-weight: 500;
     border: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-.header-badge i {
-    color: #3b82f6;
 }
 
 /* Resumo do Status */
@@ -1102,8 +1253,9 @@ body {
     
     /* Cards */
     .search-card,
+    .not-found-card,
     .unified-tracking-card {
-        padding: 0;
+        padding: 24px;
         border-radius: var(--radius-lg);
     }
     
@@ -1128,6 +1280,22 @@ body {
     .input-with-button input {
         min-height: 52px;
         font-size: 16px;
+    }
+    
+    /* Estado Não Encontrado - Mobile */
+    .not-found-icon {
+        width: 60px;
+        height: 60px;
+        font-size: 28px;
+    }
+    
+    .suggestion-list li {
+        padding: 12px;
+    }
+    
+    .action-button {
+        min-width: 100%;
+        padding: 14px 24px;
     }
     
     /* Card Unificado - Mobile */
@@ -1285,6 +1453,19 @@ body {
         min-height: 56px;
     }
     
+    /* Estado Não Encontrado - Mobile Pequeno */
+    .not-found-card {
+        padding: 20px;
+    }
+    
+    .not-found-card h4 {
+        font-size: 20px;
+    }
+    
+    .suggestion-list li span {
+        font-size: 14px;
+    }
+    
     /* Card Unificado - Mobile Pequeno */
     .tracking-header {
         padding: 20px;
@@ -1340,27 +1521,4 @@ body {
     .sig-logo-image {
         height: 12px;
     }
-	
-
-	/* Adicione no final do arquivo styles.css */
-
-	/* Ícone de sincronização minimalista */
-	.sync-badge .fa-sync-alt {
-		color: #6b7280; /* Cinza neutro e discreto */
-		opacity: 0.9;
-		animation: slowSpin 4s linear infinite;
-	}
-
-	@keyframes slowSpin {
-		0% { transform: rotate(0deg); }
-		100% { transform: rotate(360deg); }
-	}
-
-	/* Se quiser que pare de rodar quando não há atividade (opcional) */
-	.sync-badge.inactive .fa-sync-alt {
-		animation: none;
-		opacity: 0.5;
-	}
-
-	
 }
