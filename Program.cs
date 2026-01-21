@@ -45,8 +45,34 @@ try
     builder.Services.AddHttpClient("internalApi", client =>
     {
         var apiBase = builder.Configuration["Tracking:ApiBaseUrl"];
+        
+        // ✅ VALIDAÇÃO: Adicionar https:// se não tiver
         if (!string.IsNullOrEmpty(apiBase))
-            client.BaseAddress = new Uri(apiBase);
+        {
+            if (!apiBase.StartsWith("http://", StringComparison.OrdinalIgnoreCase) &&
+                !apiBase.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+            {
+                apiBase = "https://" + apiBase;
+                Log.Warning("⚠️ ApiBaseUrl sem protocolo, adicionado https://");
+            }
+            
+            try
+            {
+                client.BaseAddress = new Uri(apiBase);
+                Log.Information("✅ API Base configurada: {Url}", apiBase);
+            }
+            catch (UriFormatException ex)
+            {
+                Log.Fatal(ex, "❌ URL da API inválida: {Url}", apiBase);
+                throw;
+            }
+        }
+        else
+        {
+            Log.Fatal("❌ ApiBaseUrl não configurada em appsettings.json");
+            throw new InvalidOperationException("Tracking:ApiBaseUrl é obrigatória");
+        }
+        
         client.Timeout = TimeSpan.FromSeconds(10);
     });
 
@@ -169,58 +195,24 @@ try
                     return Results.NotFound(new { error = "Não encontrado" });
                 }
 
-                logger.LogInformation("🔵 TrackingService OK - Message: {Message}", apiResponse.Message);
-
-                if (apiResponse.Message != "OK")
-                {
-                    logger.LogInformation("ℹ️ Mensagem: {Message}", apiResponse.Message);
-
-                    if (apiResponse.Message.Contains("não localizado", StringComparison.OrdinalIgnoreCase))
-                    {
-                        return Results.NotFound(new
-                        {
-                            error = "CPF ou e-mail não localizado",
-                            message = apiResponse.Message
-                        });
-                    }
-
-                    return Results.Ok(new
-                    {
-                        message = apiResponse.Message,
-                        found = false
-                    });
-                }
-
-                if (apiResponse.ShippingEvents == null ||
-                    !apiResponse.ShippingEvents.Any(e => e.DtShipping.HasValue && !string.IsNullOrEmpty(e.DsCode)))
-                {
-                    logger.LogWarning("⚠️ Sem eventos válidos");
-                    return Results.NotFound(new
-                    {
-                        error = "Sem eventos",
-                        orderInfo = apiResponse.Info
-                    });
-                }
-
                 var response = new FrontendTrackingResponse
                 {
-                    OrderNumber = apiResponse.Info?.Number,
-                    OrderDate = apiResponse.Info?.Date,
-                    PredictionDate = apiResponse.Info?.Prediction,
-                    IdErp = apiResponse.Info?.IdErp,
-                    Message = apiResponse.Message,
-                    Events = apiResponse.ShippingEvents
-                        .Where(e => e.DtShipping.HasValue && !string.IsNullOrEmpty(e.DsCode))
-                        .OrderByDescending(e => e.DtShipping!.Value)
+                    OrderNumber = apiResponse.CdRastreio,
+                    OrderDate = null, // Não existe no novo modelo, pode remover ou ajustar se necessário
+                    PredictionDate = apiResponse.Prediction?.ToString("dd/MM/yyyy HH:mm") ,
+                    IdErp = null, // Não existe no novo modelo, pode remover ou ajustar se necessário
+                    Message = null,
+                    Events = apiResponse.Eventos?
+                        .OrderByDescending(e => e.final)
                         .Select(e => new FrontendEvent
                         {
-                            Date = e.DtShipping!.Value.ToString("dd/MM/yyyy HH:mm"),
-                            Status = e.DsCode,
-                            Description = e.Message,
-                            Complement = e.Complement,
-                            InternalCode = e.InternalCode
+                            Date = e.final?.ToString("dd/MM/yyyy HH:mm"),
+                            Status = e.statusTimeline,
+                            Description = e.dsTimeline, // Não existe no novo modelo, pode remover ou ajustar se necessário
+                            Complement = null,  // Não existe no novo modelo, pode remover ou ajustar se necessário
+                            InternalCode = null // Não existe no novo modelo, pode remover ou ajustar se necessário
                         })
-                        .ToList()
+                        .ToList() ?? new List<FrontendEvent>()
                 };
 
                 logger.LogInformation("✅ Sucesso: {Code} - {Count} eventos", req.Code, response.Events.Count);

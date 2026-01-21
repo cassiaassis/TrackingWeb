@@ -106,19 +106,45 @@ namespace Tracking.Web.Services
                 var authResponse = await response.Content.ReadFromJsonAsync<AuthResponse>(cancellationToken: ct);
                 if (authResponse == null || string.IsNullOrEmpty(authResponse.AccessToken))
                 {
-                    _logger.LogWarning("⚠️ Response de autenticação inválida para {Identifier}", MaskIdentifier(identifier));
+                    _logger.LogError("⚠️ Response de autenticação inválida para {Identifier}", MaskIdentifier(identifier));
                     return null;
                 }
 
-                var expiresIn = authResponse.ExpiresAt - DateTime.UtcNow;
-                if (expiresIn.TotalMinutes > 1)
+                // ✅ DIAGNÓSTICO DE FUSO HORÁRIO
+                var nowUtc = DateTime.UtcNow;
+                var nowLocal = DateTime.Now;
+                var serverExpiration = authResponse.ExpiresAt;
+
+                _logger.LogInformation("🕐 Diagnóstico de tempo:");
+                _logger.LogInformation("   - Servidor (UTC): {ServerTime}", nowUtc);
+                _logger.LogInformation("   - Local: {LocalTime}", nowLocal);
+                _logger.LogInformation("   - Token expira em: {ExpiresAt} (Kind: {Kind})", 
+                    serverExpiration, serverExpiration.Kind);
+                _logger.LogInformation("   - Diferença: {Diff} minutos", 
+                    (serverExpiration - nowUtc).TotalMinutes);
+
+                // ✅ VALIDAR SE TOKEN JÁ ESTÁ EXPIRADO
+                if (serverExpiration <= nowUtc)
                 {
-                    var cacheExpiration = expiresIn.Subtract(TimeSpan.FromMinutes(1));
-                    _cache.Set(cacheKey, authResponse.AccessToken, cacheExpiration);
-                    
-                    _logger.LogInformation("✅ Token JWT armazenado em cache por {Minutes} minutos", 
-                        cacheExpiration.TotalMinutes);
+                    _logger.LogError("❌ Token JÁ ESTÁ EXPIRADO ao ser recebido!");
+                    _logger.LogError("   - ExpiresAt: {ExpiresAt}", serverExpiration);
+                    _logger.LogError("   - Agora UTC: {Now}", nowUtc);
+                    return null;
                 }
+
+                var expiresIn = serverExpiration - nowUtc;
+
+                if (expiresIn.TotalSeconds < 30)
+                {
+                    _logger.LogWarning("⚠️ Token expira em menos de 30 segundos! ({Seconds}s)", 
+                        expiresIn.TotalSeconds);
+                }
+
+                var cacheExpiration = expiresIn.Subtract(TimeSpan.FromMinutes(1));
+                _cache.Set(cacheKey, authResponse.AccessToken, cacheExpiration);
+                
+                _logger.LogInformation("✅ Token JWT armazenado em cache por {Minutes} minutos", 
+                    cacheExpiration.TotalMinutes);
 
                 return authResponse.AccessToken;
             }
@@ -130,37 +156,43 @@ namespace Tracking.Web.Services
         }
 
         private async Task<InternalTrackingResponse?> ConsultarRastreioAsync(
-            string identifier, 
-            string token, 
+            string identifier,
+            string token,
             CancellationToken ct)
         {
             var client = _httpFactory.CreateClient("internalApi");
-            
+
             var request = new HttpRequestMessage(HttpMethod.Post, "/api/rastreio");
+
+            // Headers
             request.Headers.Add("Authorization", $"Bearer {token}");
-            request.Content = JsonContent.Create(new RastreioRequest(identifier));
+            request.Headers.Add("Accept", "application/json");
+
+            // Corpo correto: { "identificador": "<cpf ou email>" }
+            var body = new { identificador = identifier };
+            request.Content = JsonContent.Create(body);
 
             try
             {
                 var baseUrl = client.BaseAddress?.ToString().TrimEnd('/') ?? "";
                 var fullUrl = baseUrl + "/api/rastreio";
-                
+
                 _logger.LogInformation("🔵 Enviando request para {Url}", fullUrl);
-                _logger.LogInformation("🔵 Authorization Header: Bearer {TokenPreview}...", 
+                _logger.LogInformation("🔵 Authorization Header: Bearer {TokenPreview}...",
                     token.Length > 20 ? token.Substring(0, 20) : token);
 
                 var response = await client.SendAsync(request, ct);
 
                 _logger.LogInformation("🔵 Response Status: {Status}", response.StatusCode);
 
-                // 👇 TRATAMENTO ESPECÍFICO PARA 404 - CPF NÃO ENCONTRADO
+                // 👇 TRATAMENTO 404 - CPF NÃO ENCONTRADO
                 if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
                 {
                     var errorContent = await response.Content.ReadAsStringAsync(ct);
                     _logger.LogInformation("ℹ️ CPF/Email não encontrado. Response: {Content}", errorContent);
-                    
+
                     string message = "CPF ou e-mail não localizado.";
-                    
+
                     try
                     {
                         using var errorDoc = JsonDocument.Parse(errorContent);
@@ -171,83 +203,80 @@ namespace Tracking.Web.Services
                     }
                     catch (JsonException)
                     {
-                        _logger.LogDebug("Não foi possível extrair mensagem do JSON de erro 404");
+                        // Ignorar erro de parsing
                     }
-                    
+
                     return new InternalTrackingResponse
                     {
-                        Code = 404,
-                        Message = message,
-                        Info = new OrderInfo
-                        {
-                            Id = string.Empty,
-                            Number = string.Empty,
-                            Date = string.Empty,
-                            Prediction = string.Empty,
-                            IdErp = null
-                        },
-                        ShippingEvents = new List<ShippingEvent>()
+                        Message = message
+                        // Preencha outros campos se necessário
                     };
                 }
 
+                // 👇 TRATAMENTO 401 - TOKEN INVÁLIDO
                 if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
                 {
-                    _logger.LogWarning("🔒 Token expirado/inválido ao consultar rastreio para {Identifier}", 
-                        MaskIdentifier(identifier));
+                    var errorContent = await response.Content.ReadAsStringAsync(ct);
+                    _logger.LogError("🔒 401 Unauthorized! Response: {Content}", errorContent);
+
+                    if (response.Headers.WwwAuthenticate.Any())
+                    {
+                        _logger.LogError("   - WWW-Authenticate: {Auth}",
+                            string.Join(", ", response.Headers.WwwAuthenticate));
+                    }
+
                     return null;
                 }
 
                 if (!response.IsSuccessStatusCode)
                 {
                     var errorContent = await response.Content.ReadAsStringAsync(ct);
-                    _logger.LogWarning("❌ API rastreio retornou {Status} para {Identifier}. Conteúdo: {Content}", 
-                        response.StatusCode, MaskIdentifier(identifier), errorContent);
+                    _logger.LogWarning("❌ API retornou {Status}. Response: {Content}",
+                        response.StatusCode, errorContent);
                     return null;
                 }
 
                 var jsonContent = await response.Content.ReadAsStringAsync(ct);
-                var jsonPreview = jsonContent.Length > 500 ? jsonContent.Substring(0, 500) + "..." : jsonContent;
-                _logger.LogInformation("🔵 JSON Recebido (primeiros 500 chars): {Json}", jsonPreview);
+                _logger.LogInformation("🔵 JSON Recebido (primeiros 500 chars): {Json}",
+                    jsonContent.Length > 500 ? jsonContent.Substring(0, 500) + "..." : jsonContent);
 
                 try
                 {
-                    using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(jsonContent));
-                    var trackingResponse = await JsonSerializer.DeserializeAsync<InternalTrackingResponse>(stream, cancellationToken: ct);
+                    var trackingResponse = await JsonSerializer.DeserializeAsync<InternalTrackingResponse>(
+                        new MemoryStream(System.Text.Encoding.UTF8.GetBytes(jsonContent)),
+                        cancellationToken: ct);
 
                     if (trackingResponse != null)
                     {
-                        _logger.LogInformation("✅ Rastreio deserializado: Code={Code}, Message={Message}, Eventos={Count}", 
-                            trackingResponse.Code, trackingResponse.Message, trackingResponse.ShippingEvents?.Count ?? 0);
-                    }
-                    else
-                    {
-                        _logger.LogWarning("⚠️ Deserialização retornou NULL!");
+                        _logger.LogInformation("✅ Rastreio deserializado: CPF={Cpf}, Email={Email}, Eventos={Count}",
+                            trackingResponse.Cpf, trackingResponse.Email, trackingResponse.Eventos?.Count ?? 0);
                     }
 
                     return trackingResponse;
                 }
                 catch (JsonException jsonEx)
                 {
-                    _logger.LogError(jsonEx, "💥 Erro ao deserializar JSON. Conteúdo completo: {Json}", jsonContent);
+                    _logger.LogError(jsonEx, "💥 Erro ao deserializar JSON: {Json}", jsonContent);
                     return null;
                 }
             }
             catch (HttpRequestException httpEx)
             {
-                _logger.LogError(httpEx, "🌐 Erro de rede ao consultar rastreio para {Identifier}", MaskIdentifier(identifier));
+                _logger.LogError(httpEx, "🌐 Erro de rede ao consultar rastreio");
                 return null;
             }
             catch (TaskCanceledException timeoutEx)
             {
-                _logger.LogError(timeoutEx, "⏱️ Timeout ao consultar rastreio para {Identifier}", MaskIdentifier(identifier));
+                _logger.LogError(timeoutEx, "⏱️ Timeout ao consultar rastreio");
                 return null;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "💥 Erro inesperado ao consultar rastreio para {Identifier}", MaskIdentifier(identifier));
+                _logger.LogError(ex, "💥 Erro inesperado ao consultar rastreio");
                 return null;
             }
         }
+
 
         public async Task<bool> VerifyTurnstileAsync(string token, string remoteIp, CancellationToken ct = default)
         {

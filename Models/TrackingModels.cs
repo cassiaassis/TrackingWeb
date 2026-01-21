@@ -27,66 +27,41 @@ namespace Tracking.Web.Models
     // Response completa da API interna
     public class InternalTrackingResponse
     {
-        [JsonPropertyName("code")]
-        public int Code { get; set; }
-
         [JsonPropertyName("message")]
-        public string Message { get; set; } = string.Empty;
+        public string? Message { get; set; }
+        [JsonPropertyName("cpf")]
+        public string? Cpf { get; set; }
 
-        [JsonPropertyName("info")]
-        public OrderInfo? Info { get; set; }
+        [JsonPropertyName("email")]
+        public string? Email { get; set; }
 
-        [JsonPropertyName("shippingevents")]
-        public List<ShippingEvent> ShippingEvents { get; set; } = new();
-    }
-
-    // Informações do pedido
-    public class OrderInfo
-    {
-        [JsonPropertyName("id")]
-        public string Id { get; set; } = string.Empty;
-
-        [JsonPropertyName("number")]
-        public string Number { get; set; } = string.Empty;
-
-        [JsonPropertyName("date")]
-        public string Date { get; set; } = string.Empty;
+        [JsonPropertyName("cdRastreio")]
+        public string? CdRastreio { get; set; }
 
         [JsonPropertyName("prediction")]
-        public string Prediction { get; set; } = string.Empty;
+        public DateTime? Prediction { get; set; }
 
-        [JsonPropertyName("iderp")]
-        public string? IdErp { get; set; }
+        [JsonPropertyName("eventos")]
+        public List<TimelineEvent>? Eventos { get; set; }
     }
 
-    // Evento de rastreio
-    public class ShippingEvent
+    public class TimelineEvent
     {
-        [JsonPropertyName("code")]
-        public string Code { get; set; } = string.Empty;
+        [JsonPropertyName("idTimeline")]
+        public int IdTimeline { get; set; }
 
-        [JsonPropertyName("dscode")]
-        public string DsCode { get; set; } = string.Empty;
+        [JsonPropertyName("statusTimeline")]
+        public string? statusTimeline { get; set; }
 
-        [JsonPropertyName("message")]
-        public string Message { get; set; } = string.Empty;
+        [JsonPropertyName("dsTimeline")]
+        public string? dsTimeline { get; set; }
 
-        [JsonPropertyName("detalhe")]
-        public string Detalhe { get; set; } = string.Empty;
-
-        [JsonPropertyName("complement")]
-        public string? Complement { get; set; }
-
-        [JsonPropertyName("dtshipping")]
-        [JsonConverter(typeof(DateTimeFlexibleConverter))] // 👈 ADICIONAR ESTA LINHA
-        public DateTime? DtShipping { get; set; }
-
-        [JsonPropertyName("internalcode")]
-        public int? InternalCode { get; set; }
+        [JsonPropertyName("final")]
+        public DateTime? final { get; set; }
     }
 
     // ========== Request do Frontend para o Backend Blazor ==========
-    
+
     public record TrackRequest(string Code, string? Token);
 
     // ========== Configurações ==========

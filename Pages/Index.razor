@@ -305,21 +305,20 @@
                 }
 
                 var events = new List<UiEvent>();
-                var eventsObj = GetPropValue(apiResponse, "ShippingEvents", "shippingevents", "Shipping", "Events", "events");
+                var eventsObj = GetPropValue(apiResponse, "Eventos", "eventos", "ShippingEvents", "shippingevents", "Shipping", "Events", "events");
                 
                 if (eventsObj is System.Collections.IEnumerable enumerable)
                 {
-                    Logger.LogInformation("🔵 Total de eventos encontrados: {Count}", 
+                    Logger.LogInformation("🔵 Total de eventos encontrados: {Count}",
                         enumerable.Cast<object>().Count());
 
                     foreach (var e in enumerable)
                     {
-                        // 👇 MAPEAMENTO CORRETO DOS CAMPOS DA API
-                        var dtShipping = GetPropString(e, "DtShipping", "dtshipping", "Date", "date");
-                        var dsCode = GetPropString(e, "DsCode", "dscode", "StatusCode", "status_code");
+                        var dtShipping = GetPropString(e, "Final", "final", "DtShipping", "dtshipping", "Date", "date");
+                        var dsCode = GetPropString(e, "StatusTimeline", "statusTimeline", "DsCode", "dscode", "StatusCode", "status_code");
                         var message = GetPropString(e, "Message", "message", "Description", "description");
                         var complement = GetPropString(e, "Complement", "complement", "Complemento", "complemento");
-                        var internalCodeObj = GetPropValue(e, "InternalCode", "internalcode", "InternalCodeId", "internal_code");
+                        var internalCodeObj = GetPropValue(e, "IdTimeline", "idTimeline", "InternalCode", "internalcode", "InternalCodeId", "internal_code");
                         int internalCode = ParseIntOrZero(internalCodeObj);
 
                         Logger.LogInformation("📦 Evento mapeado:\n" +
@@ -330,20 +329,20 @@
                             "  - Complement: {Comp}",
                             internalCode, dtShipping, dsCode, message, complement);
 
+                        var dsTimeline = GetPropString(e, "DsTimeline", "Dstimeline", "dsTimeline", "dstimeline");
+
                         events.Add(new UiEvent
                         {
                             Date = TryFormatDate(dtShipping),
-                            Status = dsCode ?? message ?? "Status Desconhecido",
-                            Description = message ?? complement ?? "Sem descrição",
-                            Complement = complement,
-                            InternalCode = internalCode
+                            Status = dsCode ?? "Status Desconhecido",
+                            Description = dsTimeline ?? "Sem descrição",
                         });
+
                     }
                 }
-
                 viewModel = new UiTracking
                 {
-                    OrderNumber = GetPropString(apiResponse, "Info.Number", "info.number", "Number", "number"),
+                    OrderNumber = GetPropString(apiResponse, "CdRastreio", "cdRastreio"),
                     PredictionDate = prediction,
                     Events = events
                         .Where(ev => !string.IsNullOrEmpty(ev.Date))
@@ -351,8 +350,7 @@
                         .Concat(events.Where(ev => string.IsNullOrEmpty(ev.Date)))
                         .ToList()
                 };
-
-                if (viewModel.Events.Count == 0)
+                if (viewModel?.Events == null || viewModel.Events.Count == 0)
                 {
                     showNotFound = true;
                     errorMessage = "Nenhum evento de rastreamento disponível para este pedido.";
@@ -360,7 +358,7 @@
                 }
                 else
                 {
-                    Logger.LogInformation("Rastreamento encontrado: Pedido={Order}, Previsão={Prediction}, Eventos={Count}", 
+                    Logger.LogInformation("Rastreamento encontrado: Pedido={Order}, Previsão={Prediction}, Eventos={Count}",
                         viewModel.OrderNumber, viewModel.PredictionDate, viewModel.Events.Count);
                 }
             }
