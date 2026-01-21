@@ -487,7 +487,7 @@
     {
         if (string.IsNullOrEmpty(s)) return null;
         if (DateTime.TryParse(s, out var dt)) return dt;
-        if (DateTime.TryParseExact(s, new[] { "yyyy-MM-dd HH:mm:ss", "yyyy-MM-ddTHH:mm:ss.FFFFFF", "yyyy-MM-ddTHH:mm:ss" }, null, System.Globalization.DateTimeStyles.None, out dt))
+        if (DateTime.TryParseExact(s, new[] { "yyyy-MM-dd", "yyyy-MM-ddTHH:mm:ss.FFFFFF", "yyyy-MM-ddTHH:mm:ss" }, null, System.Globalization.DateTimeStyles.None, out dt))
             return dt;
         return null;
     }
@@ -495,7 +495,7 @@
     private static string TryFormatDate(string? s)
     {
         var dt = TryParseDateTime(s);
-        if (dt.HasValue) return dt.Value.ToString("dd/MM/yyyy HH:mm");
+        if (dt.HasValue) return dt.Value.ToString("dd/MM/yyyy");
         return s ?? "";
     }
 

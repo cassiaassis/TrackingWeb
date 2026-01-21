@@ -199,14 +199,14 @@ try
                 {
                     OrderNumber = apiResponse.CdRastreio,
                     OrderDate = null, // Não existe no novo modelo, pode remover ou ajustar se necessário
-                    PredictionDate = apiResponse.Prediction?.ToString("dd/MM/yyyy HH:mm") ,
+                    PredictionDate = apiResponse.Prediction?.ToString("dd/MM/yyyy") ,
                     IdErp = null, // Não existe no novo modelo, pode remover ou ajustar se necessário
                     Message = null,
                     Events = apiResponse.Eventos?
                         .OrderByDescending(e => e.final)
                         .Select(e => new FrontendEvent
                         {
-                            Date = e.final?.ToString("dd/MM/yyyy HH:mm"),
+                            Date = e.final?.ToString("dd/MM/yyyy"),
                             Status = e.statusTimeline,
                             Description = e.dsTimeline, // Não existe no novo modelo, pode remover ou ajustar se necessário
                             Complement = null,  // Não existe no novo modelo, pode remover ou ajustar se necessário
